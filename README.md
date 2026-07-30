@@ -308,26 +308,9 @@ Actualizar sesión
 
 ## 📸 Capturas
 
-## Menú Principal
+## examen
 
-![Menú](telegram.png)
-
-## Agregar al carrito
-
-![Carrito](telegram1.png)
-
-## Confirmación
-
-![Confirmación](telegram2.png)
-
-## Historial
-
-![Historial](telegram3.png)
-
-## Seguimiento
-
-![Seguimiento](telegram4.png)
-
+![Menú](examen.png)
 
 ---
 
