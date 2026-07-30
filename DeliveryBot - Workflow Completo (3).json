@@ -1,0 +1,2329 @@
+{
+  "name": "DeliveryBot - Workflow Completo",
+  "nodes": [
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1v3uZ3-IHduEVfnaczCy9RLHa0emavMUnAUgZyT6dr3g",
+          "mode": "list",
+          "cachedResultName": "DeliveryBot_DB",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1v3uZ3-IHduEVfnaczCy9RLHa0emavMUnAUgZyT6dr3g/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 2120279403,
+          "mode": "list",
+          "cachedResultName": "SESSIONS",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1v3uZ3-IHduEVfnaczCy9RLHa0emavMUnAUgZyT6dr3g/edit#gid=2120279403"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "telegram_id",
+              "lookupValue": "={{ String($json.telegram_id || $json.chatId || '') }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "558bc9c7-4835-40e6-82dc-b99f109f397a",
+      "name": "3. Obtener Sesión del Usuario",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 3,
+      "position": [
+        -2192,
+        -48
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "UakiX0qVWozPJNH0",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// ============================================================\n// NODO 4 - PROCESAR INTERACCIÓN\n// ============================================================\n\n// Datos actuales\nconst inputData = $input.item.json || {};\n\n// ============================================================\n// RECUPERAR DATOS DE TELEGRAM\n// ============================================================\n\n// Intentamos obtener datos del nodo 1\nconst telegramData = $('1. Normalizar Entrada Telegram').item.json;\n\n// ============================================================\n// DATOS DE TELEGRAM\n// ============================================================\n\nconst chatId = String(\n  telegramData.chatId ||\n  inputData.chatId ||\n  inputData.telegram_id ||\n  ''\n);\n\nlet text = String(\n  telegramData.text ||\n  inputData.text ||\n  ''\n).trim();\n\nconst callbackData = String(\n  telegramData.callbackData ||\n  inputData.callbackData ||\n  ''\n).trim();\n\nconst callbackQueryId = String(\n  telegramData.callbackQueryId ||\n  inputData.callbackQueryId ||\n  ''\n).trim();\n\nconst userName = String(\n  telegramData.userName ||\n  inputData.userName ||\n  ''\n).trim();\n\nconst interactionType = String(\n  telegramData.interactionType ||\n  inputData.interactionType ||\n  'unknown'\n);\n\n// ============================================================\n// NORMALIZAR /START\n// ============================================================\n\nif (\n  text === '/start' ||\n  text === '/start@DeliveryBot' ||\n  text === '/start@n8ncampuslands_bot'\n) {\n  text = 'start';\n}\n\n// ============================================================\n// CREAR / RECUPERAR SESIÓN\n// ============================================================\n\nconst session = {\n\n  telegram_id: String(\n    inputData.telegram_id ||\n    telegramData.telegram_id ||\n    chatId\n  ),\n\n  pantalla_actual:\n    inputData.pantalla_actual ||\n    'inicio',\n\n  carrito_temporal:\n    inputData.carrito_temporal ||\n    '[]',\n\n  ultimo_cambio:\n    inputData.ultimo_cambio ||\n    new Date().toISOString(),\n\n  categoria_seleccionada:\n    inputData.categoria_seleccionada ||\n    '',\n\n  ultimo_producto_visto:\n    inputData.ultimo_producto_visto ||\n    '',\n\n  nota_temporal:\n    inputData.nota_temporal ||\n    ''\n\n};\n\n// ============================================================\n// DEBUG\n// ============================================================\n\nconsole.log('==============================');\nconsole.log('NODO 4 - PROCESAR INTERACCIÓN');\nconsole.log('chatId:', chatId);\nconsole.log('text:', text);\nconsole.log('callbackData:', callbackData);\nconsole.log('callbackQueryId:', callbackQueryId);\nconsole.log('interactionType:', interactionType);\nconsole.log('session:', session);\nconsole.log('==============================');\n\n// ============================================================\n// DEVOLVER DATOS\n// ============================================================\n\nreturn {\n  json: {\n\n    ...inputData,\n\n    chatId,\n\n    telegram_id: session.telegram_id,\n\n    text,\n\n    callbackData,\n\n    callbackQueryId,\n\n    userName,\n\n    interactionType,\n\n    session\n\n  }\n};"
+      },
+      "id": "ba092316-bae3-4032-91b5-6575e742db30",
+      "name": "4. Procesar Interacción",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1456,
+        -32
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.interactionType }}",
+              "value2": "=callback"
+            }
+          ],
+          "boolean": []
+        },
+        "combineOperation": "any"
+      },
+      "id": "1493bbc2-8b91-4035-90f5-fb285f437fe0",
+      "name": "5. ¿Es Callback?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        -1248,
+        -48
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Obtener los datos del item actual\nconst data = $json;\n\n// Buscar el telegram_id en diferentes lugares posibles\nconst telegram_id =\n  data.telegram_id ??\n  data.session?.telegram_id ??\n  data.callback_query?.from?.id ??\n  data.callbackQuery?.from?.id ??\n  data.callback_query?.message?.chat?.id ??\n  data.callbackQuery?.message?.chat?.id ??\n  data.message?.chat?.id ??\n  data.chat?.id;\n\n// Validar que exista telegram_id\nif (!telegram_id) {\n  throw new Error(\n    'No se encontró telegram_id. Datos recibidos: ' +\n    JSON.stringify(data)\n  );\n}\n\n// Obtener la categoría seleccionada\nconst categoria =\n  data.categoria ??\n  data.category ??\n  data.callback_query?.data ??\n  data.callbackQuery?.data ??\n  '';\n\n// Devolver los datos correctamente\nreturn {\n  json: {\n    ...data,\n    telegram_id: String(telegram_id),\n    categoria: categoria\n  }\n};"
+      },
+      "id": "9c951915-41d7-48a2-9bb3-57906dbc4330",
+      "name": "7. Preparar Actualización de Sesión",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -384,
+        -48
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1v3uZ3-IHduEVfnaczCy9RLHa0emavMUnAUgZyT6dr3g",
+          "mode": "list",
+          "cachedResultName": "DeliveryBot_DB",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1v3uZ3-IHduEVfnaczCy9RLHa0emavMUnAUgZyT6dr3g/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 2120279403,
+          "mode": "list",
+          "cachedResultName": "SESSIONS",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1v3uZ3-IHduEVfnaczCy9RLHa0emavMUnAUgZyT6dr3g/edit#gid=2120279403"
+        },
+        "columnToMatchOn": "telegram_id",
+        "valueToMatchOn": "={{ $json.session.telegram_id }}",
+        "fieldsUi": {
+          "values": [
+            {
+              "column": "pantalla_actual",
+              "fieldValue": "={{ $json.session.pantalla_actual }}"
+            },
+            {
+              "column": "carrito_temporal",
+              "fieldValue": "={{ $json.session.carrito_temporal }}"
+            },
+            {
+              "column": "ultimo_cambio",
+              "fieldValue": "={{ $now }}"
+            },
+            {
+              "column": "categoria_seleccionada",
+              "fieldValue": "={{ $json.session.categoria_seleccionada }}"
+            },
+            {
+              "column": "ultimo_producto_visto",
+              "fieldValue": "={{ $json.session.ultimo_producto_visto }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "3ef5c450-693d-4948-9bc5-ddbc49c3fecb",
+      "name": "8. Actualizar Sesión en Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 3,
+      "position": [
+        -176,
+        -16
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "UakiX0qVWozPJNH0",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================\n// NODO 9: CONSTRUIR MENSAJE BASE\n// ============================================================\n\n// 1. OBTENER DATOS DE ENTRADA\nconst data = $input.item.json || {};\n\nconst session = data.session || {};\nconst chatId = String(data.chatId || '');\nconst text = String(data.text || '');\nconst callbackData = String(data.callbackData || '');\nconst interactionType = String(data.interactionType || '');\n\n// ============================================================\n// 2. DETERMINAR LA ACCIÓN\n// ============================================================\n\nlet action = 'inicio';\n\nif (text === '/start' || text === 'start') {\n  action = 'inicio';\n}\n\nelse if (callbackData) {\n\n  switch (callbackData) {\n\n    case 'inicio':\n      action = 'inicio';\n      break;\n\n    case 'menu_categoria':\n      action = 'mostrar_categorias';\n      break;\n\n    case 'historial':\n      action = 'mostrar_historial';\n      break;\n\n    case 'seguimiento':\n      action = 'mostrar_seguimiento';\n      break;\n\n    case 'ayuda':\n      action = 'mostrar_ayuda';\n      break;\n\n    case 'ver_puntos':\n      action = 'ver_puntos';\n      break;\n\n    case 'ver_carrito':\n      action = 'mostrar_carrito';\n      break;\n\n    case 'vaciar_carrito':\n      action = 'carrito_vaciado';\n      break;\n\n    case 'confirmar_pedido':\n      action = 'confirmar_pedido';\n      break;\n\n    case 'agregar_nota':\n      action = 'solicitar_nota';\n      break;\n\n    case 'saltar_nota':\n      action = 'confirmar_pedido';\n      break;\n\n    case 'confirmar_pago':\n      action = 'procesar_pedido';\n      break;\n\n    default:\n\n      if (callbackData.startsWith('categoria_')) {\n\n        const categoria = callbackData.replace(\n          'categoria_',\n          ''\n        );\n\n        session.categoria_seleccionada = categoria;\n\n        action = 'mostrar_productos';\n\n      }\n\n      else if (callbackData.startsWith('producto_')) {\n\n        const productoId = callbackData.replace(\n          'producto_',\n          ''\n        );\n\n        session.ultimo_producto_visto = productoId;\n\n        action = 'mostrar_detalle';\n\n      }\n\n      else if (callbackData.startsWith('agregar_carrito_')) {\n\n        const productoId = callbackData.replace(\n          'agregar_carrito_',\n          ''\n        );\n\n        session.ultimo_producto_visto = productoId;\n\n        action = 'seleccionar_cantidad';\n\n      }\n\n      else if (callbackData.startsWith('cantidad_')) {\n\n        const cantidad = Number(\n          callbackData.replace('cantidad_', '')\n        );\n\n        data.cantidadSeleccionada = cantidad;\n\n        action = 'agregar_producto_carrito';\n\n      }\n\n      else if (callbackData.startsWith('detalle_producto_')) {\n\n        const productoId = callbackData.replace(\n          'detalle_producto_',\n          ''\n        );\n\n        session.ultimo_producto_visto = productoId;\n\n        action = 'mostrar_detalle';\n\n      }\n\n      else {\n\n        action = 'inicio';\n\n      }\n\n      break;\n  }\n\n}\n\n// ============================================================\n// 3. VARIABLES DEL MENSAJE\n// ============================================================\n\nlet messageText = '';\nlet keyboard = [];\nlet parseMode = 'HTML';\n\n// ============================================================\n// 4. MENÚ PRINCIPAL\n// ============================================================\n\nif (action === 'inicio') {\n\n  messageText =\n    '☕ <b>¡Bienvenido a DeliveryBot!</b>\\n\\n' +\n    'Tu cafetería inteligente en Telegram.\\n\\n' +\n    '¿Qué deseas hacer hoy?';\n\n  keyboard = [\n\n    [\n      {\n        text: '📋 Ver Menú',\n        callback_data: 'menu_categoria'\n      }\n    ],\n\n    [\n      {\n        text: '📦 Historial',\n        callback_data: 'historial'\n      },\n      {\n        text: '📍 Seguimiento',\n        callback_data: 'seguimiento'\n      }\n    ],\n\n    [\n      {\n        text: 'ℹ️ Ayuda',\n        callback_data: 'ayuda'\n      }\n    ],\n\n    [\n      {\n        text: '🏆 Ver mis puntos',\n        callback_data: 'ver_puntos'\n      }\n    ]\n\n  ];\n\n}\n\n// ============================================================\n// 5. MOSTRAR CATEGORÍAS\n// ============================================================\n\nelse if (action === 'mostrar_categorias') {\n\n  messageText =\n    '📋 <b>Categorías del Menú</b>\\n\\n' +\n    'Selecciona una categoría para explorar nuestros productos.';\n\n  keyboard = [\n\n    [\n      {\n        text: '☕ Café',\n        callback_data: 'categoria_cafe'\n      }\n    ],\n\n    [\n      {\n        text: '🥐 Panadería',\n        callback_data: 'categoria_panaderia'\n      }\n    ],\n\n    [\n      {\n        text: '🍰 Postres',\n        callback_data: 'categoria_postres'\n      }\n    ],\n\n    [\n      {\n        text: '🔙 Volver',\n        callback_data: 'inicio'\n      }\n    ]\n\n  ];\n\n}\n\n// ============================================================\n// 6. VER PUNTOS\n// ============================================================\n\nelse if (action === 'ver_puntos') {\n\n  messageText =\n    '🏆 Consultando tus puntos acumulados...';\n\n  keyboard = [\n\n    [\n      {\n        text: '🏠 Inicio',\n        callback_data: 'inicio'\n      }\n    ]\n\n  ];\n\n}\n\n// ============================================================\n\n // ============================================================\n// MOSTRAR PRODUCTOS\n// ============================================================\n\nelse if (action === 'mostrar_productos') {\n\n    const productos = $input.all();\n\n    messageText =\n        '🥤 <b>Productos disponibles</b>\\n\\nSelecciona uno:';\n\n    keyboard = [];\n\n    for (const item of productos) {\n\n        const p = item.json;\n\n        keyboard.push([\n            {\n                text: `${p.nombre} - $${Number(p.precio).toLocaleString('es-CO')}`,\n                callback_data: `producto_${p.id_producto}`\n            }\n        ]);\n\n    }\n\n    keyboard.push([\n        {\n            text: '🔙 Volver',\n            callback_data: 'menu_categoria'\n        }\n    ]);\n\n    keyboard.push([\n        {\n            text: '🛒 Ver carrito',\n            callback_data: 'ver_carrito'\n        }\n    ]);\n\n}\n\n// ============================================================\n// HISTORIAL\n// ============================================================\n\nelse if (action === 'mostrar_historial') {\n\n  messageText =\n    '📦 <b>Historial de Pedidos</b>\\n\\n' +\n    'Cargando tu historial...';\n\n  keyboard = [\n\n    [\n      {\n        text: '🏠 Inicio',\n        callback_data: 'inicio'\n      }\n    ]\n\n  ];\n\n}\n\n// ============================================================\n// SEGUIMIENTO\n// ============================================================\n\nelse if (action === 'mostrar_seguimiento') {\n\n  messageText =\n    '📍 <b>Seguimiento de Pedidos</b>\\n\\n' +\n    'Cargando el estado de tus pedidos...';\n\n  keyboard = [\n\n    [\n      {\n        text: '🔄 Actualizar',\n        callback_data: 'seguimiento'\n      },\n      {\n        text: '🏠 Inicio',\n        callback_data: 'inicio'\n      }\n    ]\n\n  ];\n\n}\n\n// ============================================================\n// AYUDA\n// ============================================================\n\nelse if (action === 'mostrar_ayuda') {\n\n  messageText =\n    'ℹ️ <b>Ayuda de DeliveryBot</b>\\n\\n' +\n    '📋 <b>¿Cómo hacer un pedido?</b>\\n' +\n    '1. Ve al menú\\n' +\n    '2. Selecciona una categoría\\n' +\n    '3. Elige un producto\\n' +\n    '4. Selecciona la cantidad\\n' +\n    '5. Confirma tu pedido';\n\n  keyboard = [\n\n    [\n      {\n        text: '📋 Ver Menú',\n        callback_data: 'menu_categoria'\n      }\n    ],\n\n    [\n      {\n        text: '🏠 Inicio',\n        callback_data: 'inicio'\n      }\n    ]\n\n  ];\n\n}\n\n// ============================================================\n// MOSTRAR CARRITO\n// ============================================================\n\nelse if (\n  action === 'mostrar_carrito' ||\n  action === 'carrito_actualizado' ||\n  action === 'agregar_producto_carrito'\n) {\n\n  let items = [];\n\n  try {\n\n    if (\n      session.carrito_temporal &&\n      session.carrito_temporal !== 'cero'\n    ) {\n\n      items = JSON.parse(session.carrito_temporal);\n\n    }\n\n  } catch (error) {\n\n    items = [];\n\n  }\n\n  if (items.length === 0) {\n\n    messageText =\n      '🛒 <b>Tu carrito está vacío</b>\\n\\n' +\n      'Agrega productos desde el menú.';\n\n    keyboard = [\n\n      [\n        {\n          text: '📋 Ver Menú',\n          callback_data: 'menu_categoria'\n        }\n      ],\n\n      [\n        {\n          text: '🏠 Inicio',\n          callback_data: 'inicio'\n        }\n      ]\n\n    ];\n\n  } else {\n\n    let detalle = '';\n    let total = 0;\n\n    items.forEach((item, index) => {\n\n      const cantidad = Number(item.cantidad || 0);\n      const precio = Number(item.precio || 0);\n\n      const subtotal = cantidad * precio;\n\n      total += subtotal;\n\n      detalle +=\n        `${index + 1}. ${item.nombre} x${cantidad} = $${subtotal.toLocaleString('es-CO')}\\n`;\n\n    });\n\n    messageText =\n      '🛒 <b>Tu carrito</b>\\n\\n' +\n      detalle +\n      '\\n💰 <b>TOTAL: $' +\n      total.toLocaleString('es-CO') +\n      '</b>\\n\\n' +\n      '¿Qué deseas hacer?';\n\n    keyboard = [\n\n      [\n        {\n          text: '✅ Confirmar Pedido',\n          callback_data: 'confirmar_pedido'\n        }\n      ],\n\n      [\n        {\n          text: '📋 Seguir Comprando',\n          callback_data: 'menu_categoria'\n        }\n      ],\n\n      [\n        {\n          text: '🏠 Inicio',\n          callback_data: 'inicio'\n        }\n      ]\n\n    ];\n\n  }\n\n}\n\n// ============================================================\n// CONFIRMAR PEDIDO\n// ============================================================\n\nelse if (action === 'confirmar_pedido') {\n\n  messageText =\n    '📋 <b>Confirmación de Pedido</b>\\n\\n' +\n    '¿Deseas confirmar tu pedido?';\n\n  keyboard = [\n\n    [\n      {\n        text: '✅ Confirmar y Pagar',\n        callback_data: 'confirmar_pago'\n      }\n    ],\n\n    [\n      {\n        text: '🔙 Volver al Carrito',\n        callback_data: 'ver_carrito'\n      }\n    ],\n\n    [\n      {\n        text: '🏠 Inicio',\n        callback_data: 'inicio'\n      }\n    ]\n\n  ];\n\n}\n\n// ============================================================\n// PROCESAR PEDIDO\n// ============================================================\n\nelse if (action === 'procesar_pedido') {\n\n  messageText =\n    '⏳ <b>Procesando tu pedido...</b>\\n\\n' +\n    'Espera un momento.';\n\n  keyboard = [];\n\n}\n  \n\n// ============================================================\n// 11. PROCESAR PEDIDO\n// ============================================================\n\nelse if (action === 'procesar_pedido') {\n\n  messageText =\n    '⏳ <b>Procesando tu pedido...</b>\\n\\n' +\n    'Espera un momento.';\n\n  keyboard = [];\n\n}\n// ============================================================\n// VER MIS PUNTOS\n// ============================================================\n\nelse if (callbackData === 'ver_puntos') {\n\n  action = 'ver_puntos';\n\n  text =\n    '🏆 Consultando tus puntos...';\n\n}\n\n// ============================================================\n// VALOR POR DEFECTO\n// ============================================================\n\nelse {\n\n  action = 'inicio';\n\n  text =\n    '☕ <b>¡Bienvenido a DeliveryBot!</b>\\n\\n' +\n    'Tu cafetería inteligente en Telegram.\\n\\n' +\n    '¿Qué deseas hacer hoy?';\n\n}\n\n// ============================================================\n// BOTONES DEL MENÚ PRINCIPAL\n// ============================================================\n\nconst replyMarkup = {\n\n  inline_keyboard: [\n\n    [\n      {\n        text: '📋 Ver Menú',\n        callback_data: 'menu_categoria'\n      }\n    ],\n\n    [\n      {\n        text: '📦 Historial',\n        callback_data: 'historial'\n      },\n      {\n        text: '📍 Seguimiento',\n        callback_data: 'seguimiento'\n      }\n    ],\n\n    [\n      {\n        text: 'ℹ️ Ayuda',\n        callback_data: 'ayuda'\n      }\n    ],\n\n    [\n      {\n        text: '🏆 Ver mis puntos',\n        callback_data: 'ver_puntos'\n      }\n    ]\n\n  ]\n\n};\n\n// ============================================================\n// DEVOLVER DATOS\n// ============================================================\n\nreturn {\n\n  json: {\n\n    ...$json,\n\n    action,\n\n    text,\n\n    replyMarkup,\n\n    payload: {\n\n      chat_id: chatId,\n\n      text,\n\n      parse_mode: 'HTML',\n\n      reply_markup: replyMarkup\n\n    }\n\n  }\n\n};"
+      },
+      "id": "dcdbbaf3-3a12-4efe-9000-060fdee53477",
+      "name": "9. Construir Mensaje Base",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        80,
+        -16
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.needsCategories }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "70ce65d9-82e8-4b78-b9d4-1c26a448c1a4",
+      "name": "10. ¿Necesita Categorías?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        576,
+        384
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1v3uZ3-IHduEVfnaczCy9RLHa0emavMUnAUgZyT6dr3g",
+          "mode": "list",
+          "cachedResultName": "DeliveryBot_DB",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1v3uZ3-IHduEVfnaczCy9RLHa0emavMUnAUgZyT6dr3g/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "MENU",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1v3uZ3-IHduEVfnaczCy9RLHa0emavMUnAUgZyT6dr3g/edit#gid=0"
+        },
+        "options": {}
+      },
+      "id": "283ded25-3247-4f7d-8fbf-0b9da0b28673",
+      "name": "11. Cargar Categorías del Menú",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 3,
+      "position": [
+        816,
+        -96
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "UakiX0qVWozPJNH0",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================\n// NODO 12 - FORMATEAR CATEGORÍAS EN TECLADO\n// MODO: RUN ONCE FOR ALL ITEMS\n// ============================================================\n\n// Obtener TODAS las filas que vienen del Nodo 11\nconst items = $input.all();\n\n// Crear conjunto para evitar categorías repetidas\nconst categoriasSet = new Set();\n\n// Recorrer todas las filas\nfor (const item of items) {\n\n  const row = item.json;\n\n  const categoria = String(\n    row.categoria || ''\n  ).trim();\n\n  if (categoria) {\n    categoriasSet.add(categoria);\n  }\n}\n\n// Convertir Set en Array\nconst categorias = Array.from(categoriasSet);\n\n// Crear teclado\nconst keyboard = [];\n\n// Crear un botón por categoría\nfor (const categoria of categorias) {\n\n  keyboard.push([\n    {\n      text: '📂 ' + categoria,\n      callback_data: 'categoria_' + categoria\n    }\n  ]);\n\n}\n\n// Botones inferiores\nkeyboard.push([\n  {\n    text: '🛒 Ver Carrito',\n    callback_data: 'ver_carrito'\n  },\n  {\n    text: '🏠 Inicio',\n    callback_data: 'inicio'\n  }\n]);\n\n// Obtener los datos originales del primer item\nconst firstItem = items[0]?.json || {};\n\nconst chatId = String(\n  $('9. Construir Mensaje Base').item.json.chatId || ''\n);\n\nconst payload = {\n  chat_id: chatId,\n\n  text:\n    '📋 <b>Categorías del Menú</b>\\n\\n' +\n    'Selecciona una categoría para explorar nuestros productos.',\n\n  parse_mode: 'HTML',\n\n  reply_markup: JSON.stringify({\n    inline_keyboard: keyboard\n  })\n};\n\n// Devolver UN SOLO ITEM\nreturn [\n  {\n    json: {\n      ...firstItem,\n\n      chatId: chatId,\n\n      text:\n        '📋 <b>Categorías del Menú</b>\\n\\n' +\n        'Selecciona una categoría para explorar nuestros productos.',\n\n      replyMarkup: {\n        inline_keyboard: keyboard\n      },\n\n      payload: {\n        chat_id: chatId,\n        text:\n          '📋 <b>Categorías del Menú</b>\\n\\n' +\n          'Selecciona una categoría para explorar nuestros productos.',\n        parse_mode: 'HTML',\n        reply_markup: {\n          inline_keyboard: keyboard\n        }\n      },\n\n      needsCategories: true,\n      needsProducts: false,\n      needsProductDetail: false,\n      isConfirmPedido: false\n    }\n  }\n];"
+      },
+      "id": "9c536eef-c0a3-4feb-9227-d5f9a6ff1d24",
+      "name": "12. Formatear Categorías en Teclado",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1040,
+        -112
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.action === 'mostrar_productos' }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "02c04d7a-b4b4-4adb-af85-f5b1a567d9a5",
+      "name": "13. ¿Necesita Productos?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        864,
+        384
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1v3uZ3-IHduEVfnaczCy9RLHa0emavMUnAUgZyT6dr3g",
+          "mode": "list",
+          "cachedResultName": "DeliveryBot_DB",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1v3uZ3-IHduEVfnaczCy9RLHa0emavMUnAUgZyT6dr3g/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "MENU",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1v3uZ3-IHduEVfnaczCy9RLHa0emavMUnAUgZyT6dr3g/edit#gid=0"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "categoria",
+              "lookupValue": "={{ $json.categoria_seleccionada }}"
+            }
+          ]
+        },
+        "options": {
+          "returnAllMatches": "returnAllMatches"
+        }
+      },
+      "id": "37f26972-1da6-4c8a-9a2a-ff3f438979b7",
+      "name": "14. Cargar Productos por Categoría",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 3,
+      "position": [
+        1104,
+        368
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "UakiX0qVWozPJNH0",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Obtener todas las filas provenientes del Nodo 14\nconst items = $input.all();\n\nconsole.log('Productos recibidos:', items.length);\n\n// ============================================================\n// OBTENER DATOS ORIGINALES\n// ============================================================\n\nconst baseData = $('9. Construir Mensaje Base').item.json;\n\nconst chatId = String(\n  baseData.chatId || ''\n);\n\nconst session = baseData.session || {};\n\nconst categoria = String(\n  session.categoria_seleccionada || ''\n).trim();\n\n// ============================================================\n// VALIDAR CHAT ID\n// ============================================================\n\nif (!chatId) {\n  throw new Error(\n    'Nodo 15: No se encontró chatId.'\n  );\n}\n\n// ============================================================\n// CREAR TECLADO\n// ============================================================\n\nconst keyboard = [];\n\n// ============================================================\n// RECORRER PRODUCTOS\n// ============================================================\n\nfor (const item of items) {\n\n  const product = item.json || {};\n\n  const nombre = String(\n    product.nombre || ''\n  ).trim();\n\n  const precio = Number(\n    product.precio || 0\n  );\n\n  const id = String(\n    product.id_producto || ''\n  ).trim();\n\n  // Ignorar filas incompletas\n  if (!nombre || !id) {\n    continue;\n  }\n\n  keyboard.push([\n    {\n      text:\n        '🍽️ ' +\n        nombre +\n        ' - $' +\n        precio.toLocaleString('es-CO'),\n\n      callback_data:\n        'producto_' + id\n    }\n  ]);\n}\n\n// ============================================================\n// SI NO HAY PRODUCTOS\n// ============================================================\n\nlet messageText = '';\n\nif (keyboard.length === 0) {\n\n  messageText =\n    '⚠️ <b>No hay productos disponibles</b>\\\\n\\\\n' +\n    'No encontramos productos para esta categoría.';\n\n} else {\n\n  messageText =\n    '🍽️ <b>Productos disponibles</b>\\\\n\\\\n' +\n    'Categoría: <b>' +\n    categoria +\n    '</b>\\\\n\\\\n' +\n    'Selecciona un producto:';\n\n}\n\n// ============================================================\n// BOTONES DE NAVEGACIÓN\n// ============================================================\n\nkeyboard.push([\n  {\n    text: '🔙 Volver a Categorías',\n    callback_data: 'menu_categoria'\n  },\n  {\n    text: '🛒 Ver Carrito',\n    callback_data: 'ver_carrito'\n  }\n]);\n\nkeyboard.push([\n  {\n    text: '🏠 Inicio',\n    callback_data: 'inicio'\n  }\n]);\n\n// ============================================================\n// CREAR PAYLOAD\n// ============================================================\n\nconst payload = {\n\n  chat_id: chatId,\n\n  text: messageText,\n\n  parse_mode: 'HTML',\n\n  reply_markup: {\n    inline_keyboard: keyboard\n  }\n\n};\n\n// ============================================================\n// DEVOLVER RESULTADO\n// ============================================================\n\nreturn [\n  {\n    json: {\n\n    ...baseData,\n\n      chatId: chatId,\n\n      session: session,\n\n      action: 'mostrar_productos',\n\n      needsCategories: false,\n\n      needsProducts: true,\n\n      needsProductDetail: false,\n\n      isConfirmPedido: false,\n\n      payload: payload\n\n    }\n  }\n];"
+      },
+      "id": "e2d08c28-4e14-4aab-b3e4-cc19948539da",
+      "name": "15. Formatear Productos en Teclado",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1296,
+        496
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.action === 'mostrar_detalle' }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "6e1ee675-9472-4513-a9a8-b30e27a87a57",
+      "name": "16. ¿Necesita Detalle de Producto?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        832,
+        640
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1v3uZ3-IHduEVfnaczCy9RLHa0emavMUnAUgZyT6dr3g",
+          "mode": "list",
+          "cachedResultName": "DeliveryBot_DB",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1v3uZ3-IHduEVfnaczCy9RLHa0emavMUnAUgZyT6dr3g/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "MENU",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1v3uZ3-IHduEVfnaczCy9RLHa0emavMUnAUgZyT6dr3g/edit#gid=0"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "id_producto",
+              "lookupValue": "={{ $json.session.ultimo_producto_visto }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "6a1d359f-e19e-419d-ba09-d268f1f83c97",
+      "name": "17. Cargar Detalle del Producto",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 3,
+      "position": [
+        1072,
+        656
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "UakiX0qVWozPJNH0",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// ============================================================\n// NODO 18 - FORMATEAR DETALLE DEL PRODUCTO\n// ============================================================\n// Este nodo recibe el producto encontrado desde Google Sheets\n// y construye:\n// - text\n// - replyMarkup\n// - payload\n//\n// IMPORTANTE:\n// Se mantienen chatId, session y el resto de datos recibidos.\n// ============================================================\n\n\n// ============================================================\n// 1. OBTENER DATOS DE ENTRADA\n// ============================================================\n\nconst data = $input.item.json || {};\n\nconst product = data;\n\n\n// ============================================================\n// 2. SI NO SE ENCUENTRA EL PRODUCTO\n// ============================================================\n\nif (!product) {\n\n  const text = '⚠️ <b>Producto no encontrado</b>';\n\n  const replyMarkup = {\n    inline_keyboard: [\n      [\n        {\n          text: '🔙 Volver a Categorías',\n          callback_data: 'menu_categoria'\n        },\n        {\n          text: '🏠 Inicio',\n          callback_data: 'inicio'\n        }\n      ]\n    ]\n  };\n\n  return {\n    json: {\n\n      // Mantener todos los datos anteriores\n      ...data,\n\n      // Datos que utilizará el nodo 25\n      chatId: String(data.chatId || ''),\n\n      text: text,\n\n      replyMarkup: replyMarkup,\n\n      // Payload completo\n      payload: {\n        chat_id: String(data.chatId || ''),\n        text: text,\n        parse_mode: 'HTML',\n        reply_markup: replyMarkup\n      }\n\n    }\n  };\n}\n\n\n// ============================================================\n// 3. DATOS DEL PRODUCTO\n// ============================================================\n\nconst nombre = String(\n  product.nombre || 'Producto'\n);\n\nconst descripcion = String(\n  product.descripcion || 'Sin descripción'\n);\n\nconst precio = Number(\n  product.precio || 0\n);\n\nconst stock = Number(\n  product.stock || 0\n);\n\nconst id = String(\n  product.id_producto || ''\n);\n\n\n// ============================================================\n// 4. CREAR TEXTO DEL MENSAJE\n// ============================================================\n\nconst messageText =\n\n  '🍽️ <b>' + nombre + '</b>\\n\\n' +\n\n  '📝 <b>Descripción:</b> ' +\n  descripcion + '\\n' +\n\n  '💰 <b>Precio:</b> $' +\n  precio.toLocaleString('es-CO') + '\\n' +\n\n  '📦 <b>Stock disponible:</b> ' +\n  stock +\n  ' unidades\\n\\n' +\n\n  '¿Qué deseas hacer?';\n\n\n// ============================================================\n// 5. CREAR TECLADO INLINE\n// ============================================================\n\nconst categoriaActual = String(\n  data.session?.categoria_seleccionada || ''\n);\n\nconst keyboard = [\n\n  [\n    {\n      text: '➕ Agregar al Carrito',\n      callback_data: 'agregar_carrito_' + id\n    }\n  ],\n\n  [\n    {\n      text: '🔙 Volver a Productos',\n      callback_data: 'categoria_' + categoriaActual\n    },\n    {\n      text: '🏠 Inicio',\n      callback_data: 'inicio'\n    }\n  ]\n\n];\n\n\n// ============================================================\n// 6. CREAR REPLY MARKUP\n// ============================================================\n\nconst replyMarkup = {\n  inline_keyboard: keyboard\n};\n\n\n// ============================================================\n// 7. OBTENER SESIÓN\n// ============================================================\n\nconst session = data.session || {};\n\n\n// ============================================================\n// 8. ACTUALIZAR CARRITO TEMPORAL\n// ============================================================\n\nlet carrito = [];\n\ntry {\n\n  carrito = JSON.parse(\n    session.carrito_temporal || '[]'\n  );\n\n  // Asegurar que sea un array\n  if (!Array.isArray(carrito)) {\n    carrito = [];\n  }\n\n} catch (error) {\n\n  carrito = [];\n\n}\n\n\n// ============================================================\n// 9. ACTUALIZAR INFORMACIÓN DEL PRODUCTO EN EL CARRITO\n// ============================================================\n\ncarrito.forEach(function(item) {\n\n  if (\n    String(item.id) === String(id) &&\n    (\n      !item.nombre ||\n      item.nombre === 'Producto'\n    )\n  ) {\n\n    item.nombre = nombre;\n\n    item.precio = precio;\n\n  }\n\n});\n\n\n// Guardar carrito actualizado\nsession.carrito_temporal = JSON.stringify(carrito);\n\n\n// ============================================================\n// 10. DEVOLVER RESULTADO\n// ============================================================\n\nreturn {\n\n  json: {\n\n    // Mantener todos los datos anteriores\n    ...data,\n\n    // ========================================================\n    // DATOS DIRECTOS PARA EL NODO 25\n    // ========================================================\n\n    chatId: String(\n      data.chatId || ''\n    ),\n\n    text: messageText,\n\n    replyMarkup: replyMarkup,\n\n\n    // ========================================================\n    // PAYLOAD COMPLETO\n    // ========================================================\n\n    payload: {\n\n      chat_id: String(\n        data.chatId || ''\n      ),\n\n      text: messageText,\n\n      parse_mode: 'HTML',\n\n      reply_markup: replyMarkup\n\n    },\n\n\n    // ========================================================\n    // SESIÓN ACTUALIZADA\n    // ========================================================\n\n    session: session\n\n  }\n\n};"
+      },
+      "id": "92804c07-2ab9-4d5c-9ea1-9bcd83aa049e",
+      "name": "18. Formatear Detalle del Producto",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1296,
+        704
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.action === 'confirmar_pedido' }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "b74b67cf-5232-41e9-817a-9b7b1cab21a2",
+      "name": "19. ¿Es Confirmar Pedido?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        720,
+        1120
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const session = $json.session;\nconst carrito = JSON.parse(session.carrito_temporal || '[]');\nlet total = 0;\ncarrito.forEach(function(item) {\n  total += (item.precio || 0) * item.cantidad;\n});\nreturn {\n  json: {\n    ...$json,\n    telegramId: $json.telegramId,\n    fullName: $json.fullName,\n    carritoJson: JSON.stringify(carrito),\n    total: total,\n    nota: session.nota_temporal || ''\n  }\n};"
+      },
+      "id": "ced20a39-8f3c-4c5e-ac09-c08dca978bb3",
+      "name": "20. Preparar Datos del Pedido",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1232,
+        1232
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.telegram.org/bot8953130749:AAFDN79GwVrictd2nah9kLtLF0x4S0c8uTw/sendMessage",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "chat_id",
+              "value": "-1003947936405"
+            },
+            {
+              "name": "text",
+              "value": "={{  '🍽️ <b>NUEVO PEDIDO</b>\\n\\n' + '🆔 ID: ' + $json.id_pedido + '\\n' + '👤 Cliente: ' + $json.nombre_usuario + '\\n\\n' + '📦 Pedido:\\n' + $json.detalles_pedido + '\\n\\n' + '💰 Total: $' + $json.total_pago + '\\n' + '📝 Nota: ' + ($json.notas || 'Sin notas') }}"
+            },
+            {
+              "name": "parse_mode",
+              "value": "HTML"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "13e7f0bb-0852-4223-bb4f-e3299cc5b4b0",
+      "name": "23. HTTP - Notificar Cocina",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [
+        2240,
+        832
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.isConfirmPedido === false || $json.isConfirmPedido === undefined }}"
+            }
+          ]
+        }
+      },
+      "id": "33799a53-abdb-43b4-a7b2-5ffd441f320e",
+      "name": "24. ¿No es Confirmar Pedido?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1136,
+        1008
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Append row in sheet').item.json.telegram_id }}",
+        "text": "={{\n`✅ <b>¡Pedido Confirmado!</b>\n\n🆔 <b>Número de pedido:</b> ${$json.id_pedido}\n\n👤 <b>Cliente:</b> ${$json.nombre_usuario}\n\n💰 <b>Total:</b> $${Number($json.total_pago).toLocaleString('es-CO')}\n\n📊 <b>Estado:</b> ${$json.estado}\n\n📅 <b>Fecha:</b> ${$json.fecha}\n\n🕒 <b>Hora:</b> ${$json.hora}\n\n📢 Tu pedido fue enviado correctamente a la cocina.\n\nTe notificaremos cuando:\n\n👨‍🍳 Se encuentre en preparación.\n🛵 Salga para entrega.\n✅ Haya sido entregado.\n\n¡Gracias por comprar con nosotros! 😊`\n",
+        "replyMarkup": "inlineKeyboard",
+        "additionalFields": {}
+      },
+      "id": "09710497-7a8d-4235-9cf0-2e034871f611",
+      "name": "27. Enviar Confirmación de Pedido",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [
+        2192,
+        1072
+      ],
+      "webhookId": "0f19350c-16d4-4d50-929f-507eeefa0dc2",
+      "credentials": {
+        "telegramApi": {
+          "id": "qkbClJQrSXZpIFah",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "updates": [
+          "message",
+          "callback_query"
+        ],
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -3152,
+        -48
+      ],
+      "id": "572ea721-c131-4fa9-bc1f-f0827d158bcb",
+      "name": "Telegram Trigger1",
+      "webhookId": "af0974e0-dba4-4b67-b324-521e1efe18b0",
+      "alwaysOutputData": true,
+      "executeOnce": false,
+      "credentials": {
+        "telegramApi": {
+          "id": "qkbClJQrSXZpIFah",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================\n// NODO 1 - NORMALIZAR ENTRADA TELEGRAM\n// ============================================================\n// Este nodo recibe cualquier actualización de Telegram:\n// - Mensaje de texto\n// - Callback de un botón inline\n//\n// Su objetivo es convertir ambos formatos en una estructura\n// uniforme que el resto del workflow pueda utilizar.\n// ============================================================\n\nconst input = $input.item.json;\n\n// ============================================================\n// VARIABLES BASE\n// ============================================================\n\nlet interactionType = 'unknown';\n\nlet chatId = '';\nlet text = '';\nlet callbackData = '';\nlet callbackQueryId = '';\nlet userName = '';\n\n// ============================================================\n// CASO 1: MENSAJE NORMAL DE TELEGRAM\n// ============================================================\n\nif (input.message) {\n\n  interactionType = 'message';\n\n  chatId = String(\n    input.message.chat?.id || ''\n  );\n\n  text = String(\n    input.message.text || ''\n  ).trim();\n\n  userName = String(\n    input.message.from?.first_name || ''\n  ).trim();\n\n}\n\n// ============================================================\n// CASO 2: BOTÓN INLINE / CALLBACK QUERY\n// ============================================================\n\nelse if (input.callback_query) {\n\n  interactionType = 'callback';\n\n  chatId = String(\n    input.callback_query.message?.chat?.id || ''\n  );\n\n  callbackData = String(\n    input.callback_query.data || ''\n  ).trim();\n\n  callbackQueryId = String(\n    input.callback_query.id || ''\n  ).trim();\n\n  userName = String(\n    input.callback_query.from?.first_name || ''\n  ).trim();\n\n}\n\n// ============================================================\n// VALIDACIÓN\n// ============================================================\n\nif (!chatId) {\n\n  throw new Error(\n    'No se pudo obtener el chatId de Telegram.'\n  );\n\n}\n\n// ============================================================\n// DEVOLVER DATOS NORMALIZADOS\n// ============================================================\n\nreturn {\n  json: {\n\n    chatId,\n\n    // El telegram_id será siempre el mismo valor que chatId\n    telegram_id: chatId,\n\n    text,\n\n    callbackData,\n\n    callbackQueryId,\n\n    userName,\n\n    interactionType,\n\n    // Guardamos el objeto original por si necesitamos\n    // información adicional posteriormente.\n    raw: input\n\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2944,
+        -48
+      ],
+      "id": "21df9fd3-a78b-498c-adb6-b88c15f54605",
+      "name": "1. Normalizar Entrada Telegram"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "e21a567a-f8af-498c-824c-2447e4852847",
+              "leftValue": "={{ String($json.telegram_id || '') }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -1936,
+        -48
+      ],
+      "id": "f6675883-1261-4983-9748-0d67c83bd4f3",
+      "name": "existe seccion?"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1v3uZ3-IHduEVfnaczCy9RLHa0emavMUnAUgZyT6dr3g",
+          "mode": "list",
+          "cachedResultName": "DeliveryBot_DB",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1v3uZ3-IHduEVfnaczCy9RLHa0emavMUnAUgZyT6dr3g/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 2120279403,
+          "mode": "list",
+          "cachedResultName": "SESSIONS",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1v3uZ3-IHduEVfnaczCy9RLHa0emavMUnAUgZyT6dr3g/edit#gid=2120279403"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "telegram_id": "={{ $('1. Normalizar Entrada Telegram').item.json.chatId }}",
+            "pantalla_actual": "inicio",
+            "carrito_temporal": "[]",
+            "ultimo_cambio": "={{ $now }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "telegram_id",
+              "displayName": "telegram_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "pantalla_actual",
+              "displayName": "pantalla_actual",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "carrito_temporal",
+              "displayName": "carrito_temporal",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "ultimo_cambio",
+              "displayName": "ultimo_cambio",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "categoria_seleccionada",
+              "displayName": "categoria_seleccionada",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "ultimo_producto_visto",
+              "displayName": "ultimo_producto_visto",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "nota_temporal",
+              "displayName": "nota_temporal",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -1632,
+        80
+      ],
+      "id": "ac0acb74-5496-41fa-a022-ad0f9a66a1aa",
+      "name": "3B. Crear Sesión Inicial",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "UakiX0qVWozPJNH0",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.telegram.org/bot8953130749:AAFDN79GwVrictd2nah9kLtLF0x4S0c8uTw/sendMessage",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{\n(() => {\n\n  const original = $('1. Normalizar Entrada Telegram').item.json;\n\n  const chatId = String(\n    original.chatId || ''\n  );\n\n  const payload = $json.payload || {};\n\n  const text = String(\n    payload.text ||\n    $json.text ||\n    'Mensaje de DeliveryBot'\n  );\n\n  let replyMarkup =\n    payload.reply_markup ||\n    $json.replyMarkup ||\n    null;\n\n  if (typeof replyMarkup === 'string') {\n    try {\n      replyMarkup = JSON.parse(replyMarkup);\n    } catch (error) {\n      replyMarkup = null;\n    }\n  }\n\n  const body = {\n    chat_id: chatId,\n    text: text,\n    parse_mode: 'HTML'\n  };\n\n  if (replyMarkup) {\n    body.reply_markup = replyMarkup;\n  }\n\n  return body;\n\n})()\n}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1984,
+        448
+      ],
+      "id": "39e3a895-cae9-4e3b-83a6-ecb6b864a4e7",
+      "name": "25. Enviar Mensaje a Telegram"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// ============================================================\n// NODO 6 - PROCESAR ACCIÓN\n// ============================================================\n\nconst callbackData = String(\n  $json.callbackData || ''\n).trim();\n\nconst session = $json.session || {};\n\nconsole.log('🔘 CALLBACK RECIBIDO:', callbackData);\n\n// ============================================================\n// BOTÓN: VER MENÚ\n// ============================================================\n\nif (callbackData === 'menu_categoria') {\n\n  session.pantalla_actual = 'menu_categoria';\n\n  return {\n    json: {\n      ...$json,\n      session,\n      action: 'mostrar_categorias'\n    }\n  };\n\n}\n\n// ============================================================\n// BOTÓN: HISTORIAL\n// ============================================================\n\nif (callbackData === 'historial') {\n\n  session.pantalla_actual = 'historial';\n\n  return {\n    json: {\n      ...$json,\n      session,\n      action: 'mostrar_historial'\n    }\n  };\n\n}\n\n// ============================================================\n// BOTÓN: SEGUIMIENTO\n// ============================================================\n\nif (callbackData === 'seguimiento') {\n\n  session.pantalla_actual = 'seguimiento';\n\n  return {\n    json: {\n      ...$json,\n      session,\n      action: 'mostrar_seguimiento'\n    }\n  };\n\n}\n\n// ============================================================\n// BOTÓN: AYUDA\n// ============================================================\n\nif (callbackData === 'ayuda') {\n\n  session.pantalla_actual = 'ayuda';\n\n  return {\n    json: {\n      ...$json,\n      session,\n      action: 'mostrar_ayuda'\n    }\n  };\n\n}\n\n// ============================================================\n// BOTÓN: INICIO\n// ============================================================\n\nif (callbackData === 'inicio') {\n\n  session.pantalla_actual = 'inicio';\n\n  return {\n    json: {\n      ...$json,\n      session,\n      action: 'inicio'\n    }\n  };\n\n}\n\n// ============================================================\n// BOTÓN: VER CARRITO\n// ============================================================\n\nif (callbackData === 'ver_carrito') {\n\n  session.pantalla_actual = 'carrito';\n\n  return {\n    json: {\n      ...$json,\n      session,\n      action: 'mostrar_carrito'\n    }\n  };\n\n}\n\n// ============================================================\n// BOTÓN: CATEGORÍA\n// categoria_cafe\n// categoria_panaderia\n// categoria_postres\n// ============================================================\n\nif (callbackData.startsWith('categoria_')) {\n\n  const categoria = callbackData.replace(\n    'categoria_',\n    ''\n  );\n\n  session.categoria_seleccionada = categoria;\n\n  session.pantalla_actual = 'productos';\n\n  return {\n    json: {\n      ...$json,\n      session,\n      action: 'mostrar_productos'\n    }\n  };\n\n}\n\n// ============================================================\n// BOTÓN: PRODUCTO\n// producto_123\n// ============================================================\n\nif (callbackData.startsWith('producto_')) {\n\n  const productoId = callbackData.replace(\n    'producto_',\n    ''\n  );\n\n  session.ultimo_producto_visto = productoId;\n\n  session.pantalla_actual = 'detalle_producto';\n\n  return {\n    json: {\n      ...$json,\n      session,\n      action: 'mostrar_detalle'\n    }\n  };\n\n}\n\n// ============================================================\n// BOTÓN: AGREGAR AL CARRITO\n// agregar_carrito_123\n// ============================================================\n\nif (callbackData.startsWith('agregar_carrito_')) {\n\n  const productoId = callbackData.replace(\n    'agregar_carrito_',\n    ''\n  );\n\n  session.ultimo_producto_visto = productoId;\n\n  session.pantalla_actual = 'seleccionar_cantidad';\n\n  return {\n    json: {\n      ...$json,\n      session,\n      action: 'seleccionar_cantidad'\n    }\n  };\n\n}\n\n// ============================================================\n// BOTÓN: CANTIDAD\n// cantidad_1\n// cantidad_2\n// cantidad_3\n// cantidad_4\n// cantidad_5\n// ============================================================\n\nif (callbackData.startsWith('cantidad_')) {\n\n  const cantidad = Number(\n    callbackData.replace('cantidad_', '')\n  );\n\n  session.pantalla_actual = 'carrito';\n\n  return {\n    json: {\n      ...$json,\n      session,\n      cantidadSeleccionada: cantidad,\n\n      // IMPORTANTE:\n      // Esta acción indica que debemos agregar\n      // el producto seleccionado al carrito.\n      action: 'agregar_producto_carrito'\n    }\n  };\n}\n\n// ============================================================\n// BOTÓN: CONFIRMAR PEDIDO\n// ============================================================\n\nif (callbackData === 'confirmar_pedido') {\n\n  session.pantalla_actual = 'confirmar_pedido';\n\n  return {\n    json: {\n      ...$json,\n      session,\n      action: 'confirmar_pedido'\n    }\n  };\n\n}\n// ============================================================\n// BOTÓN: puntos\n// ============================================================\nif(callbackData===\"ver_puntos\"){\n\naction=\"ver_puntos\";\n\n}\n// ============================================================\n// BOTÓN: CONFIRMAR PAGO\n// ============================================================\n\nif (callbackData === 'confirmar_pago') {\n\n  session.pantalla_actual = 'procesar_pedido';\n\n  return {\n    json: {\n      ...$json,\n      session,\n      action: 'procesar_pedido'\n    }\n  };\n\n}\n\n// ============================================================\n// BOTÓN: AGREGAR NOTA\n// ============================================================\n\nif (callbackData === 'agregar_nota') {\n\n  session.pantalla_actual = 'solicitar_nota';\n\n  return {\n    json: {\n      ...$json,\n      session,\n      action: 'solicitar_nota'\n    }\n  };\n\n}\n\n// ============================================================\n// BOTÓN: SALTAR NOTA\n// ============================================================\n\nif (callbackData === 'saltar_nota') {\n\n  session.pantalla_actual = 'confirmar_pedido';\n\n  return {\n    json: {\n      ...$json,\n      session,\n      action: 'confirmar_pedido'\n    }\n  };\n\n}\n\n// ============================================================\n// BOTÓN DESCONOCIDO\n// ============================================================\n\nreturn {\n  json: {\n    ...$json,\n    session,\n    action: 'inicio'\n  }\n};"
+      },
+      "id": "dac027b4-ae30-4134-a00e-bc55395371ec",
+      "name": "6. Procesar Acción",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1136,
+        -208
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.item.json || {};\n\nconst session = data.session || {};\n\n// ============================================================\n// 1. OBTENER CANTIDAD SELECCIONADA\n// ============================================================\n\nconst cantidad = Number(\n  data.cantidadSeleccionada || 1\n);\n\n// ============================================================\n// 2. OBTENER ID DEL PRODUCTO DESDE LA SESIÓN\n// ============================================================\n\nconst id = String(\n  session.ultimo_producto_visto || ''\n).trim();\n\nif (!id) {\n  throw new Error(\n    'No se encontró el ID del producto en session.ultimo_producto_visto. Datos recibidos: ' +\n    JSON.stringify(data)\n  );\n}\n\n// ============================================================\n// 3. OBTENER PRODUCTO\n// ============================================================\n\n// Intentar obtener datos del producto disponibles\n// Si no están disponibles, usaremos valores temporales\nconst nombre = String(data.nombre || \"Producto\");\n\nconst precio = Number(data.precio || 0);\n\n// ============================================================\n// 4. OBTENER CARRITO ACTUAL\n// ============================================================\n\nlet carrito = [];\n\ntry {\n\n  carrito = JSON.parse(\n    session.carrito_temporal || '[]'\n  );\n\n  if (!Array.isArray(carrito)) {\n    carrito = [];\n  }\n\n} catch (error) {\n\n  carrito = [];\n\n}\n\n// ============================================================\n// 5. BUSCAR SI EL PRODUCTO YA EXISTE\n// ============================================================\n\nconst productoExistente = carrito.find(\n  item =>\n    String(item.id) === String(id)\n);\n\n// ============================================================\n// 6. ACTUALIZAR O AGREGAR PRODUCTO\n// ============================================================\n\nif (productoExistente) {\n\n  productoExistente.cantidad =\n    Number(productoExistente.cantidad || 0) +\n    cantidad;\n\n  // Solo actualizar si tenemos información válida\n  if (nombre !== 'Producto') {\n    productoExistente.nombre = nombre;\n  }\n\n  if (precio > 0) {\n    productoExistente.precio = precio;\n  }\n\n} else {\n\n  carrito.push({\n\n    id: id,\n\n    nombre: nombre,\n\n    precio: precio,\n\n    cantidad: cantidad\n\n  });\n\n}\n\n// ============================================================\n// 7. GUARDAR CARRITO ACTUALIZADO\n// ============================================================\n\nsession.carrito_temporal =\n  JSON.stringify(carrito);\n\n// ============================================================\n// 8. ACTUALIZAR SESIÓN\n// ============================================================\n\nsession.ultimo_producto_visto = id;\n\nsession.pantalla_actual = 'carrito';\n\n// ============================================================\n// 9. DEVOLVER DATOS\n// ============================================================\n\nreturn {\n\n  json: {\n\n    ...data,\n\n    session: session,\n\n    carrito_temporal:\n      session.carrito_temporal,\n\n    cantidadSeleccionada:\n      cantidad,\n\n    action:\n      'carrito_actualizado',\n\n    chatId:\n      String(data.chatId || '')\n\n  }\n\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -352,
+        -448
+      ],
+      "id": "0a9ff8a8-fa41-4b02-81a9-592d4a2f7199",
+      "name": "Agregar Producto al Carrito"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.action === 'seleccionar_cantidad' }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "ebfc0865-838d-45eb-a0cc-c6bc75f8e144",
+      "name": "nuevo if",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        784,
+        880
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.needsCarrito }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "cc410137-e656-49bd-a6b2-94104c75bb44",
+      "name": "10. ¿Necesita Carrito?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        -112,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.action === 'procesar_pedido' }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "40b2a20c-f6b2-45d7-b4d2-d1b6f1113c88",
+      "name": "19. ¿Es Confirmar Pedido?B",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        768,
+        1360
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const pedidoId = 'PED-' + Date.now();\n\nreturn {\n  json: {\n    ...$json,\n    pedido_id: pedidoId\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1392,
+        1232
+      ],
+      "id": "28817d6b-c5d6-444f-b2f9-caaceaf439e4",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1v3uZ3-IHduEVfnaczCy9RLHa0emavMUnAUgZyT6dr3g",
+          "mode": "list",
+          "cachedResultName": "DeliveryBot_DB",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1v3uZ3-IHduEVfnaczCy9RLHa0emavMUnAUgZyT6dr3g/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1691167192,
+          "mode": "list",
+          "cachedResultName": "PEDIDOS",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1v3uZ3-IHduEVfnaczCy9RLHa0emavMUnAUgZyT6dr3g/edit#gid=1691167192"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "id_pedido": "={{ $json.pedido_id }}",
+            "telegram_id": "={{ $json.telegram_id }}",
+            "nombre_usuario": "={{ $json.userName }}",
+            "detalles_pedido": "={{ $json.session.carrito_temporal }}",
+            "total_pago": "={{ $json.total }}",
+            "estado": "Pendiente",
+            "fecha": "={{ $now.format('yyyy-MM-dd') }}",
+            "hora": "={{ $now.format('HH:mm:ss') }}",
+            "notas": "={{ $json.session.nota_temporal }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "id_pedido",
+              "displayName": "id_pedido",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "telegram_id",
+              "displayName": "telegram_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "nombre_usuario",
+              "displayName": "nombre_usuario",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "detalles_pedido",
+              "displayName": "detalles_pedido",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "total_pago",
+              "displayName": "total_pago",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "estado",
+              "displayName": "estado",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "fecha",
+              "displayName": "fecha",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "hora",
+              "displayName": "hora",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "notas",
+              "displayName": "notas",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1552,
+        1232
+      ],
+      "id": "186b1354-0c2e-48d4-b400-d7362b5c800b",
+      "name": "Append row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "UakiX0qVWozPJNH0",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.action === 'inicio'\n|| $json.action === 'mostrar_historial'\n|| $json.action === 'mostrar_seguimiento'\n|| $json.action === 'mostrar_ayuda'\n|| $json.action === 'mostrar_carrito'\n|| $json.action === 'seleccionar_cantidad'\n|| $json.action === 'confirmar_pedido'\n|| $json.action === 'ver_carrito'\n}}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "6d6e961f-c760-417d-9e1a-0f57eb12ff9c",
+      "name": "10. ¿Necesita Carrito?1",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        288,
+        -16
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1v3uZ3-IHduEVfnaczCy9RLHa0emavMUnAUgZyT6dr3g",
+          "mode": "list",
+          "cachedResultName": "DeliveryBot_DB",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1v3uZ3-IHduEVfnaczCy9RLHa0emavMUnAUgZyT6dr3g/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1639909553,
+          "mode": "list",
+          "cachedResultName": "USUARIOS",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1v3uZ3-IHduEVfnaczCy9RLHa0emavMUnAUgZyT6dr3g/edit#gid=1639909553"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "telegram_id",
+              "lookupValue": "={{ $json.telegram_id }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -2736,
+        -48
+      ],
+      "id": "0be8cd41-188c-496a-b363-5849cfaf2cf5",
+      "name": "2.Buscar usuario",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "UakiX0qVWozPJNH0",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "1dcd1177-4728-4a9d-bbc5-58d70f39ef22",
+              "leftValue": "={{ $('2.Buscar usuario').item.json.telegram_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -2528,
+        -48
+      ],
+      "id": "7758aefc-762d-460a-a505-035738a382e4",
+      "name": "existe?"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1v3uZ3-IHduEVfnaczCy9RLHa0emavMUnAUgZyT6dr3g",
+          "mode": "list",
+          "cachedResultName": "DeliveryBot_DB",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1v3uZ3-IHduEVfnaczCy9RLHa0emavMUnAUgZyT6dr3g/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1639909553,
+          "mode": "list",
+          "cachedResultName": "USUARIOS",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1v3uZ3-IHduEVfnaczCy9RLHa0emavMUnAUgZyT6dr3g/edit#gid=1639909553"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "telegram_id": "={{ $('1. Normalizar Entrada Telegram').item.json.telegram_id }}",
+            "nombre_completo": "={{ $('1. Normalizar Entrada Telegram').item.json.userName }}",
+            "ultimo_pedido": "={{ $now.format('yyyy-MM-dd HH:mm:ss') }}"
+          },
+          "matchingColumns": [
+            "telegram_id"
+          ],
+          "schema": [
+            {
+              "id": "telegram_id",
+              "displayName": "telegram_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "nombre_completo",
+              "displayName": "nombre_completo",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "departamento",
+              "displayName": "departamento",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "puntos_lealtad",
+              "displayName": "puntos_lealtad",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "fecha_registro",
+              "displayName": "fecha_registro",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "ultimo_pedido",
+              "displayName": "ultimo_pedido",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -2352,
+        -176
+      ],
+      "id": "fa165a31-e828-4335-9e0b-515318cba2a9",
+      "name": "act6ualizar_usuario",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "UakiX0qVWozPJNH0",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1v3uZ3-IHduEVfnaczCy9RLHa0emavMUnAUgZyT6dr3g",
+          "mode": "list",
+          "cachedResultName": "DeliveryBot_DB",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1v3uZ3-IHduEVfnaczCy9RLHa0emavMUnAUgZyT6dr3g/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1639909553,
+          "mode": "list",
+          "cachedResultName": "USUARIOS",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1v3uZ3-IHduEVfnaczCy9RLHa0emavMUnAUgZyT6dr3g/edit#gid=1639909553"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "telegram_id": "={{ $('1. Normalizar Entrada Telegram').item.json.telegram_id }}",
+            "nombre_completo": "={{ $('1. Normalizar Entrada Telegram').item.json.userName }}",
+            "fecha_registro": "={{ $now.format('yyyy-MM-dd') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "telegram_id",
+              "displayName": "telegram_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "nombre_completo",
+              "displayName": "nombre_completo",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "fecha_registro",
+              "displayName": "fecha_registro",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "ultimo_pedido",
+              "displayName": "ultimo_pedido",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -2368,
+        64
+      ],
+      "id": "ebbbcc78-dbd4-4951-866f-96eba106d8eb",
+      "name": "crear usuario",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "UakiX0qVWozPJNH0",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1v3uZ3-IHduEVfnaczCy9RLHa0emavMUnAUgZyT6dr3g",
+          "mode": "list",
+          "cachedResultName": "DeliveryBot_DB",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1v3uZ3-IHduEVfnaczCy9RLHa0emavMUnAUgZyT6dr3g/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "MENU",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1v3uZ3-IHduEVfnaczCy9RLHa0emavMUnAUgZyT6dr3g/edit#gid=0"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "id_producto",
+              "lookupValue": "={{ $json.session.ultimo_producto_visto }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -848,
+        -496
+      ],
+      "id": "77b98a18-e014-48c6-96d3-347a25e82e7c",
+      "name": "buscar producto",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "UakiX0qVWozPJNH0",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "76b3c791-33c5-48b2-b03f-28c5ce3ad9db",
+              "leftValue": "={{ Number($json.stock) }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -704,
+        -512
+      ],
+      "id": "06b010ae-d3e0-458f-8560-48420c978be8",
+      "name": "hay producto?"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "975dfe4c-b378-4edb-9383-1db709c92ed6",
+              "leftValue": "={{ $json.action }}",
+              "rightValue": "agregar_producto_carrito",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -992,
+        -320
+      ],
+      "id": "9c2eeb0f-8020-43bd-b6dc-8904dc9515de",
+      "name": "agregar producto?"
+    },
+    {
+      "parameters": {
+        "jsCode": "return {\njson:{\nmensaje:\n\"❌ Lo sentimos, este producto ya no tiene stock.\"\n}\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -592,
+        -352
+      ],
+      "id": "e857fade-81dd-435e-a7e4-ff82ed35df3d",
+      "name": "Producto Sin Stock"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineAll",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        -496,
+        -624
+      ],
+      "id": "0069bd27-0df6-479a-9de8-7f6ce6b09d4f",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1984,
+        1056
+      ],
+      "id": "6106b0f5-1398-4c4d-a187-2772c82aa3a1",
+      "name": "Merge1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "6891db62-03f0-4ce3-81f4-93c0a13b25d4",
+              "leftValue": "={{$json.action == 'ver_puntos'}}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -96,
+        544
+      ],
+      "id": "25755846-0de9-4411-8266-ccf0d60ed25b",
+      "name": "necesitaspuntos?"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1v3uZ3-IHduEVfnaczCy9RLHa0emavMUnAUgZyT6dr3g",
+          "mode": "list",
+          "cachedResultName": "DeliveryBot_DB",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1v3uZ3-IHduEVfnaczCy9RLHa0emavMUnAUgZyT6dr3g/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1639909553,
+          "mode": "list",
+          "cachedResultName": "USUARIOS",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1v3uZ3-IHduEVfnaczCy9RLHa0emavMUnAUgZyT6dr3g/edit#gid=1639909553"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "telegram_id",
+              "lookupValue": "={{$json.chatId}}"
+            }
+          ]
+        },
+        "options": {
+          "returnFirstMatch": true
+        }
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        96,
+        320
+      ],
+      "id": "fa4ee230-07b6-4b6b-af62-806c4d420406",
+      "name": "Get row(s) in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "UakiX0qVWozPJNH0",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const usuario = $input.first().json;\n\nconst payload = {\n\nchat_id: usuario.chatId,\n\ntext:\n\n`👋 Hola ${usuario.userName || \"Usuario\"},\n\nActualmente tienes\n\n🏆 ${usuario.puntos || 0} puntos acumulados.\n\n¡Sigue comprando para canjear premios!`,\n\nreply_markup:{\ninline_keyboard:[\n[\n{\ntext:\"🏠 Inicio\",\ncallback_data:\"inicio\"\n}\n]\n]\n}\n\n};\n\nreturn [\n\n{\n\njson:{\n\n...usuario,\n\npayload\n\n}\n\n}\n\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        320,
+        224
+      ],
+      "id": "55b17faf-4be2-4bad-a619-7e33f1ab5e1a",
+      "name": "formatear puntos"
+    },
+    {
+      "parameters": {
+        "jsCode": "const total = Number($('20. Preparar Datos del Pedido').item.json.total || 0);\n\nconst puntosGanados = Math.floor(total / 5000);\n\nreturn [{\n  json: {\n    ...$json,\n    total,\n    puntosGanados\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1712,
+        768
+      ],
+      "id": "23b2dcd4-fe96-4238-873c-566df7a0560b",
+      "name": "calcular puntos"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1v3uZ3-IHduEVfnaczCy9RLHa0emavMUnAUgZyT6dr3g",
+          "mode": "list",
+          "cachedResultName": "DeliveryBot_DB",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1v3uZ3-IHduEVfnaczCy9RLHa0emavMUnAUgZyT6dr3g/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1639909553,
+          "mode": "list",
+          "cachedResultName": "USUARIOS",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1v3uZ3-IHduEVfnaczCy9RLHa0emavMUnAUgZyT6dr3g/edit#gid=1639909553"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "telegram_id",
+              "lookupValue": "={{ $('20. Preparar Datos del Pedido').item.json.telegram_id }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1856,
+        768
+      ],
+      "id": "39ea3a39-4e69-49c2-b344-588a804a0c45",
+      "name": "buscar usuario",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "UakiX0qVWozPJNH0",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Usuario encontrado en la hoja USUARIOS\nconst usuario = $input.first().json;\n\n// Puntos calculados en el nodo anterior\nconst datosCompra = $('calcular puntos').item.json;\n\n// Puntos actuales\nconst puntosActuales = Number(usuario.puntos || 0);\n\n// Puntos ganados\nconst puntosGanados = Number(datosCompra.puntosGanados || 0);\n\n// Total nuevo\nconst nuevosPuntos = puntosActuales + puntosGanados;\n\nreturn [\n{\njson:{\n...usuario,\n\npuntosActuales,\npuntosGanados,\nnuevosPuntos\n\n}\n}\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2016,
+        736
+      ],
+      "id": "e0402245-55a3-4601-96e2-466e49b98311",
+      "name": "sumar puntos"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1v3uZ3-IHduEVfnaczCy9RLHa0emavMUnAUgZyT6dr3g",
+          "mode": "list",
+          "cachedResultName": "DeliveryBot_DB",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1v3uZ3-IHduEVfnaczCy9RLHa0emavMUnAUgZyT6dr3g/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1639909553,
+          "mode": "list",
+          "cachedResultName": "USUARIOS",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1v3uZ3-IHduEVfnaczCy9RLHa0emavMUnAUgZyT6dr3g/edit#gid=1639909553"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "telegram_id": "={{ $json.telegram_id }}",
+            "puntos": "={{$json.nuevosPuntos}}"
+          },
+          "matchingColumns": [
+            "telegram_id"
+          ],
+          "schema": [
+            {
+              "id": "telegram_id",
+              "displayName": "telegram_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "nombre_completo",
+              "displayName": "nombre_completo",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "fecha_registro",
+              "displayName": "fecha_registro",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "ultimo_pedido",
+              "displayName": "ultimo_pedido",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "puntos",
+              "displayName": "puntos",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2320,
+        608
+      ],
+      "id": "36c5447b-c478-42fa-a6b9-1044a22be3e5",
+      "name": "Update row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "UakiX0qVWozPJNH0",
+          "name": "Google Sheets account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "3. Obtener Sesión del Usuario": {
+      "main": [
+        [
+          {
+            "node": "existe seccion?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "4. Procesar Interacción": {
+      "main": [
+        [
+          {
+            "node": "5. ¿Es Callback?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "5. ¿Es Callback?": {
+      "main": [
+        [
+          {
+            "node": "6. Procesar Acción",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "7. Preparar Actualización de Sesión",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "7. Preparar Actualización de Sesión": {
+      "main": [
+        [
+          {
+            "node": "8. Actualizar Sesión en Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "8. Actualizar Sesión en Google Sheets": {
+      "main": [
+        [
+          {
+            "node": "9. Construir Mensaje Base",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "9. Construir Mensaje Base": {
+      "main": [
+        [
+          {
+            "node": "10. ¿Necesita Carrito?1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "10. ¿Necesita Categorías?": {
+      "main": [
+        [
+          {
+            "node": "11. Cargar Categorías del Menú",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "13. ¿Necesita Productos?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "11. Cargar Categorías del Menú": {
+      "main": [
+        [
+          {
+            "node": "12. Formatear Categorías en Teclado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "12. Formatear Categorías en Teclado": {
+      "main": [
+        [
+          {
+            "node": "25. Enviar Mensaje a Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "13. ¿Necesita Productos?": {
+      "main": [
+        [
+          {
+            "node": "14. Cargar Productos por Categoría",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "16. ¿Necesita Detalle de Producto?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "14. Cargar Productos por Categoría": {
+      "main": [
+        [
+          {
+            "node": "15. Formatear Productos en Teclado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "15. Formatear Productos en Teclado": {
+      "main": [
+        [
+          {
+            "node": "25. Enviar Mensaje a Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "16. ¿Necesita Detalle de Producto?": {
+      "main": [
+        [
+          {
+            "node": "17. Cargar Detalle del Producto",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "nuevo if",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "17. Cargar Detalle del Producto": {
+      "main": [
+        [
+          {
+            "node": "18. Formatear Detalle del Producto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "18. Formatear Detalle del Producto": {
+      "main": [
+        [
+          {
+            "node": "25. Enviar Mensaje a Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "19. ¿Es Confirmar Pedido?": {
+      "main": [
+        [
+          {
+            "node": "20. Preparar Datos del Pedido",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "19. ¿Es Confirmar Pedido?B",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "20. Preparar Datos del Pedido": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "23. HTTP - Notificar Cocina": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "24. ¿No es Confirmar Pedido?": {
+      "main": [
+        [
+          {
+            "node": "25. Enviar Mensaje a Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "20. Preparar Datos del Pedido",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "27. Enviar Confirmación de Pedido": {
+      "main": [
+        []
+      ]
+    },
+    "Telegram Trigger1": {
+      "main": [
+        [
+          {
+            "node": "1. Normalizar Entrada Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "1. Normalizar Entrada Telegram": {
+      "main": [
+        [
+          {
+            "node": "2.Buscar usuario",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "existe seccion?": {
+      "main": [
+        [
+          {
+            "node": "4. Procesar Interacción",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "3B. Crear Sesión Inicial",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "3B. Crear Sesión Inicial": {
+      "main": [
+        [
+          {
+            "node": "4. Procesar Interacción",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "25. Enviar Mensaje a Telegram": {
+      "main": [
+        []
+      ]
+    },
+    "6. Procesar Acción": {
+      "main": [
+        [
+          {
+            "node": "agregar producto?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Agregar Producto al Carrito": {
+      "main": [
+        [
+          {
+            "node": "7. Preparar Actualización de Sesión",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "nuevo if": {
+      "main": [
+        [
+          {
+            "node": "25. Enviar Mensaje a Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "19. ¿Es Confirmar Pedido?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "10. ¿Necesita Carrito?": {
+      "main": [
+        [
+          {
+            "node": "25. Enviar Mensaje a Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "necesitaspuntos?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "19. ¿Es Confirmar Pedido?B": {
+      "main": [
+        [
+          {
+            "node": "20. Preparar Datos del Pedido",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "24. ¿No es Confirmar Pedido?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append row in sheet": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 1
+          },
+          {
+            "node": "calcular puntos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "10. ¿Necesita Carrito?1": {
+      "main": [
+        [
+          {
+            "node": "25. Enviar Mensaje a Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "10. ¿Necesita Carrito?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "2.Buscar usuario": {
+      "main": [
+        [
+          {
+            "node": "existe?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "existe?": {
+      "main": [
+        [
+          {
+            "node": "act6ualizar_usuario",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "crear usuario",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "act6ualizar_usuario": {
+      "main": [
+        [
+          {
+            "node": "3. Obtener Sesión del Usuario",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "crear usuario": {
+      "main": [
+        [
+          {
+            "node": "3. Obtener Sesión del Usuario",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "buscar producto": {
+      "main": [
+        [
+          {
+            "node": "hay producto?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "hay producto?": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Producto Sin Stock",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "agregar producto?": {
+      "main": [
+        [
+          {
+            "node": "buscar producto",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "7. Preparar Actualización de Sesión",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Producto Sin Stock": {
+      "main": [
+        [
+          {
+            "node": "7. Preparar Actualización de Sesión",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Agregar Producto al Carrito",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge1": {
+      "main": [
+        [
+          {
+            "node": "27. Enviar Confirmación de Pedido",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "necesitaspuntos?": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "10. ¿Necesita Categorías?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet": {
+      "main": [
+        [
+          {
+            "node": "formatear puntos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "formatear puntos": {
+      "main": [
+        [
+          {
+            "node": "25. Enviar Mensaje a Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "calcular puntos": {
+      "main": [
+        [
+          {
+            "node": "buscar usuario",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "buscar usuario": {
+      "main": [
+        [
+          {
+            "node": "sumar puntos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "sumar puntos": {
+      "main": [
+        [
+          {
+            "node": "Update row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update row in sheet": {
+      "main": [
+        [
+          {
+            "node": "23. HTTP - Notificar Cocina",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "4e90a85b-6b5e-4771-8755-d4e619424ebf",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "965dcc793655c74e106825e599452d93ef8adadcd9caa7f99f21df9891b5474a"
+  },
+  "nodeGroups": [],
+  "id": "J6TwLfI1VmjjIdWC",
+  "tags": []
+}
